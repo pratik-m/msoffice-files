@@ -1,0 +1,139 @@
+' Formats the current sheet as a table - puts in border and creates a header for the first
+' row
+Sub formatCurrentSheet()
+    Application.ScreenUpdating = False
+
+    Dim filterArray() As Variant
+    Dim currentFilterRange As Variant
+    Dim isFilterApplied As Boolean
+
+    currentFilterRange = Null
+    isFilterApplied = False
+
+    'If Application.ActiveSheet.FilterMode Then
+    '    isFilterApplied = True
+    '    filterArray = getCurrentFilters()
+    '    currentFilterRange = Application.ActiveSheet.AutoFilter.Range.Address
+    '    Application.ActiveSheet.ShowAllData
+    'End If
+
+    'if pivot exists on a page, then skip it
+    'check if multiple filters exists - handle it
+    ActiveWindow.Zoom = 90
+    With Application.ActiveSheet:
+        .Cells.Font.Name = "Calibri"
+        .Cells.Font.Size = 10
+    '   .Cells.WrapText = True
+        .Cells.WrapText = False
+        .Cells.Interior.ThemeColor = xlThemeColorDark1
+        .Cells.Interior.PatternTintAndShade = 1
+        .UsedRange.Borders.LineStyle = xlContinuous
+        .UsedRange.Borders.Weight = xlThin
+        .UsedRange.Borders.ThemeColor = 1
+        .UsedRange.Borders.TintAndShade = -0.349986266670736
+    '
+        .UsedRange.Rows(1).Interior.ThemeColor = xlThemeColorLight2
+        .UsedRange.Rows(1).Font.ThemeColor = xlThemeColorDark1
+        .UsedRange.Rows(1).Font.Bold = True
+       .UsedRange.Rows(1).HorizontalAlignment = xlCenter
+'        .UsedRange.AutoFilter
+     '   .UsedRange.Columns.AutoFit
+    End With
+
+   ' If isFilterApplied Then
+   '     applyUserFilter filterArray, currentFilterRange
+   ' End If
+
+    Application.ScreenUpdating = True
+
+End Sub
+
+' format all the sheets in a workbook
+Sub formatAllSheets()
+    Dim currentSheet As Worksheet
+    Set currentSheet = ActiveSheet
+
+    Application.ScreenUpdating = False
+    For Each wks In ActiveWorkbook.Worksheets
+        wks.Activate
+        formatCurrentSheet
+
+    Next
+    currentSheet.Activate
+    Application.ScreenUpdating = True
+
+End Sub
+
+Function getCurrentFilters() As Variant
+    Dim w As Worksheet
+    Dim filterArray() As Variant
+    Dim currentFiltRange As Variant
+    Dim col As Integer
+
+    Set w = ActiveSheet
+    currentFiltRange = w.AutoFilter.Range.Address
+
+    ' Captures AutoFilter settings
+    With w.AutoFilter
+        With .Filters
+            ReDim filterArray(1 To .Count, 1 To 3)
+                For f = 1 To .Count
+                    With .Item(f)
+                        If .On Then
+                            If IsArray(.Criteria1) Then
+                                filterArray(f, 1) = .Criteria1
+                                CriteriaOne = "=Array(" & Replace(Replace(Join(.Criteria1, ","), "=", Chr(34)), ",", Chr(34) & ",") & Chr(34) & ")"
+                                Debug.Print "CriteriaOne's Field " & f & " is an Array consisting of:"
+                                Debug.Print "  " & CriteriaOne
+
+                                filterArray(f, 2) = .Operator
+                                Debug.Print "Field:" & f & "'s .Operator value is: " & .Operator
+                                Debug.Print "  " & " (7 =xlFilterValues)"
+
+                            ElseIf Not IsArray(.Criteria1) Then
+                                filterArray(f, 1) = .Criteria1
+                                Debug.Print "Field:" & f & "'s .Criteria1 is: " & .Criteria1
+
+                                If .Operator Then
+                                    '2nd Dimension, 2nd column/index
+                                    filterArray(f, 2) = .Operator
+                                    Debug.Print "Field:" & f & "'s .Operator is: " & .Operator
+                                    Debug.Print "  " & " (2=xlOr, 1=xlAnd)"
+
+                                    '2nd Dimension, 3rd column/index
+                                    filterArray(f, 3) = .Criteria2 'simply delete this line to make it work in Excel 2010
+                                    Debug.Print "Field:" & f & "'s .Criteria2 is: " & .Criteria2
+                                End If
+                            End If
+                        End If
+                End With
+            Next f
+        End With
+    End With
+    getCurrentFilters = filterArray
+End Function
+
+Sub applyUserFilter(filterArray() As Variant, currentFilterRange As Variant)
+    Dim w As Worksheet
+    Dim col As Integer
+
+    Set w = Application.ActiveSheet
+    Application.EnableEvents = False
+
+    ' Restores Filter settings
+    For f = 1 To UBound(filterArray(), 1)
+        If Not IsEmpty(filterArray(f, 1)) Then
+            If filterArray(f, 2) Then
+                w.Range(currentFilterRange).AutoFilter Field:=f, _
+                Criteria1:=filterArray(f, 1), _
+                Operator:=filterArray(f, 2), _
+                Criteria2:=filterArray(f, 3)
+            Else
+                w.Range(currentFilterRange).AutoFilter Field:=f, _
+                Criteria1:=filterArray(f, 1)
+            End If
+        End If
+    Next f
+
+    Application.EnableEvents = True
+End Sub
